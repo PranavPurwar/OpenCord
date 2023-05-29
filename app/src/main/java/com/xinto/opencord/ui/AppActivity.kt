@@ -17,6 +17,7 @@ import com.xinto.opencord.gateway.DiscordGateway
 import com.xinto.opencord.ui.navigation.AppDestination
 import com.xinto.opencord.ui.navigation.back
 import com.xinto.opencord.ui.screens.Settings
+import com.xinto.opencord.ui.screens.SettingsCategory
 import com.xinto.opencord.ui.screens.home.HomeScreen
 import com.xinto.opencord.ui.screens.mentions.MentionsScreen
 import com.xinto.opencord.ui.screens.pins.PinsScreen
@@ -94,7 +95,9 @@ class AppActivity : ComponentActivity() {
                             onSearchClick = { /* TODO */ },
                         )
 
+
                         AppDestination.Settings -> Settings(
+                            data = dest.data
                             modifier = Modifier
                                 .fillMaxSize()
                                 .imePadding(),
@@ -114,6 +117,12 @@ class AppActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .imePadding(),
                             onBackClick = { nav.back() },
+                            onCategoryClick = { nav.navigate(it) },
+                        )
+
+                        is AppDestination.Settings -> SettingsCategory(
+                            dest = dest,
+                            onClickBack = { nav.back() },
                         )
                     }
                 }
