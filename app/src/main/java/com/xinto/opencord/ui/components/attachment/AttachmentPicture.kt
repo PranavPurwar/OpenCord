@@ -4,9 +4,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import coil.size.Size
-import com.xinto.opencord.ui.components.OCAsyncImage
+import com.xinto.opencord.ui.components.OCImage
+import com.xinto.opencord.ui.components.OCSize
 
 @Composable
 fun AttachmentPicture(
@@ -15,10 +14,10 @@ fun AttachmentPicture(
     height: Int,
     modifier: Modifier = Modifier,
 ) {
-    OCAsyncImage(
+    OCImage(
         url = url,
-        size = Size(width, height),
-        modifier = modifier.clip(MaterialTheme.shapes.small),
-        contentScale = ContentScale.Fit,
+        size = OCSize(width, height),
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small),
     )
 }

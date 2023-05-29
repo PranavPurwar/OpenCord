@@ -3,33 +3,27 @@ package com.xinto.opencord.ui.screens.home.panels.guild
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.xinto.opencord.R
-import com.xinto.opencord.domain.guild.DomainGuild
+import com.xinto.opencord.ui.components.guild.list.GuildsListHeaderItem
 import com.xinto.opencord.ui.components.guild.list.GuildsListItemImage
-import com.xinto.opencord.ui.components.guild.list.GuildsListItemText
+import com.xinto.opencord.ui.components.guild.list.GuildsListTextItem
 import com.xinto.opencord.ui.components.guild.list.RegularGuildItem
-import kotlinx.collections.immutable.ImmutableList
+import com.xinto.opencord.ui.viewmodel.GuildsViewModel.GuildItem
 
 @Composable
 fun GuildsListLoaded(
+    items: SnapshotStateList<GuildItem>,
     onGuildSelect: (Long) -> Unit,
-    selectedGuildId: Long,
-    guilds: ImmutableList<DomainGuild>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         modifier = modifier,
@@ -37,52 +31,48 @@ fun GuildsListLoaded(
         horizontalAlignment = Alignment.CenterHorizontally,
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
-        item {
-            RegularGuildItem(
-                modifier = Modifier.fillParentMaxWidth(),
-                selected = false,
-                showIndicator = false,
-                onClick = {},
-            ) {
-                GuildsListItemText {
-                    Icon(
+        items(items, key = { it.key }) { item ->
+            when (item) {
+                is GuildItem.Header -> {
+                    RegularGuildItem(
+                        modifier = Modifier.fillParentMaxWidth(),
+                        selected = false,
+                        showIndicator = false,
+                        onClick = {},
+                    ) {
+                        GuildsListHeaderItem()
+                    }
+                }
+
+                is GuildItem.Divider -> {
+                    Divider(
                         modifier = Modifier
-                            .size(32.dp)
-                            .align(Alignment.Center),
-                        painter = painterResource(R.drawable.ic_discord_logo),
-                        contentDescription = stringResource(R.string.guilds_home),
+                            .fillParentMaxWidth(0.55f)
+                            .padding(bottom = 4.dp, top = 2.dp)
+                            .clip(MaterialTheme.shapes.medium),
+                        thickness = 2.dp,
+                        color = MaterialTheme.colorScheme.outline,
                     )
                 }
-            }
-        }
 
-        item {
-            Divider(
-                modifier = Modifier
-                    .fillParentMaxWidth(0.55f)
-                    .padding(bottom = 4.dp)
-                    .clip(MaterialTheme.shapes.medium),
-                thickness = 2.dp,
-                color = MaterialTheme.colorScheme.outline,
-            )
-        }
+                is GuildItem.Guild -> {
+                    val guild = item.data
 
-        items(guilds) { guild ->
-            RegularGuildItem(
-                modifier = Modifier.fillParentMaxWidth(),
-                selected = selectedGuildId == guild.id,
-                showIndicator = true,
-                onClick = {
-                    onGuildSelect(guild.id)
-                },
-            ) {
-                if (guild.iconUrl != null) {
-                    GuildsListItemImage(
-                        url = guild.iconUrl,
-                    )
-                } else {
-                    GuildsListItemText {
-                        Text(guild.iconText)
+                    RegularGuildItem(
+                        modifier = Modifier.fillParentMaxWidth(),
+                        selected = item.selected,
+                        showIndicator = true,
+                        onClick = { onGuildSelect(guild.id) },
+                    ) {
+                        if (guild.iconUrl != null) {
+                            GuildsListItemImage(
+                                url = guild.iconUrl,
+                            )
+                        } else {
+                            GuildsListTextItem(
+                                iconText = guild.iconText,
+                            )
+                        }
                     }
                 }
             }

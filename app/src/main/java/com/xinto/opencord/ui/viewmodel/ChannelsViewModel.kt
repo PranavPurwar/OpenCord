@@ -11,6 +11,8 @@ import com.xinto.opencord.ui.viewmodel.base.BasePersistenceViewModel
 import com.xinto.opencord.util.collectIn
 import kotlinx.coroutines.*
 
+
+@Stable
 class ChannelsViewModel(
     persistentDataManager: PersistentDataManager,
     private val channelStore: ChannelStore,
@@ -28,21 +30,36 @@ class ChannelsViewModel(
     @Stable
     class ChannelItemData(
         channel: DomainChannel,
-        unreadState: DomainUnreadState?,
-        lastMessageId: Long?,
-        var unreadListenerJob: Job?,
-        var lastMessageListenerJob: Job?,
+        mentionCount: Int,
+        var unreadListenerJob: Job? = null,
+        var lastMessageListenerJob: Job? = null,
+        var mentionCountListenerJob: Job? = null,
+        private var lastUnreadMessageId: Long? = null,
+        private var lastChannelMessageId: Long? = null,
     ) {
-        var channel by mutableStateOf(channel)
-        var unreadState by mutableStateOf(unreadState)
-        var lastMessageId by mutableStateOf(lastMessageId)
+        private val _isUnread: Boolean
+            get() = (lastChannelMessageId ?: 0) > (lastUnreadMessageId ?: 0)
 
-        val isUnread: Boolean
-            get() = (lastMessageId ?: 0) > (unreadState?.lastMessageId ?: 0)
+        var channel by mutableStateOf(channel)
+        var mentionCount by mutableStateOf(mentionCount)
+        var isUnread by mutableStateOf(_isUnread)
+            private set
+
+        fun updateUnreadState(unreadState: DomainUnreadState?) {
+            lastUnreadMessageId = unreadState?.lastMessageId
+            mentionCount = unreadState?.mentionCount ?: 0
+            isUnread = _isUnread
+        }
+
+        fun updateLastMessageId(lastMessageId: Long?) {
+            this.lastChannelMessageId = lastMessageId
+            isUnread = _isUnread
+        }
 
         fun cancelJobs() {
             unreadListenerJob?.cancel()
             lastMessageListenerJob?.cancel()
+            mentionCountListenerJob?.cancel()
         }
     }
 
@@ -54,8 +71,17 @@ class ChannelsViewModel(
     ) {
         var channel by mutableStateOf(channel)
         var collapsed by mutableStateOf(collapsed)
-        var subChannels = mutableStateMapOf<Long, ChannelItemData>()
-            .apply { subChannels?.also { putAll(subChannels.associateBy { it.channel.id }) } }
+        var channels = mutableStateMapOf<Long, ChannelItemData>()
+
+        val channelsSorted by derivedStateOf {
+            channels.values.sortedWith { a, b -> a.channel compareTo b.channel }
+        }
+
+        init {
+            if (subChannels != null) {
+                channels.putAll(subChannels.associateBy { it.channel.id })
+            }
+        }
     }
 
     var state by mutableStateOf<State>(State.Unselected)
@@ -88,14 +114,13 @@ class ChannelsViewModel(
                     val guild = guildStore.fetchGuild(persistentGuildId)
                         ?: return@withContext
 
-                    replaceChannels(channelStore.fetchChannels(persistentGuildId))
-
                     withContext(Dispatchers.Main) {
                         guildName = guild.name
                         guildBannerUrl = guild.bannerUrl
                         guildBoostLevel = guild.premiumTier
-                        state = State.Loaded
                     }
+
+                    replaceChannels(channelStore.fetchChannels(persistentGuildId))
                 } catch (e: Exception) {
                     e.printStackTrace()
                     withContext(Dispatchers.Main) {
@@ -142,11 +167,11 @@ class ChannelsViewModel(
 
                         // Remove from old category
                         if (allChannelItems[channel.id]?.channel?.parentId != null) {
-                            categoryChannels[channel.id]?.subChannels?.remove(channel.id)
+                            categoryChannels[channel.id]?.channels?.remove(channel.id)
                         }
 
                         allChannelItems[channel.id] = item
-                        channel.parentId?.let { categoryChannels[it]?.subChannels?.set(it, item) }
+                        channel.parentId?.let { categoryChannels[it]?.channels?.set(it, item) }
                     }
                 },
                 onUpdate = { channel ->
@@ -175,7 +200,7 @@ class ChannelsViewModel(
 
                     if (categoryId != null) {
                         allChannelItems.remove(it)
-                        categoryChannels[categoryId]?.subChannels?.remove(it)
+                        categoryChannels[categoryId]?.channels?.remove(it)
                     }
                 },
             )
@@ -187,26 +212,24 @@ class ChannelsViewModel(
             error("cannot make channel item from category channel")
         }
 
+        val unreadState = unreadStore.getChannel(channel.id)
         val item = ChannelItemData(
             channel = channel,
-            unreadState = unreadStore.getChannel(channel.id),
-            lastMessageId = lastMessageStore.getLastMessageId(channel.id),
-            unreadListenerJob = null,
-            lastMessageListenerJob = null,
+            mentionCount = unreadState?.mentionCount ?: 0,
+            lastUnreadMessageId = unreadState?.lastMessageId,
+            lastChannelMessageId = lastMessageStore.getLastMessageId(channel.id),
         )
 
-        item.unreadListenerJob = unreadStore.observeChannel(channel.id).collectIn(viewModelScope) { event ->
+        item.unreadListenerJob = unreadStore.observeUnreadState(channel.id).collectIn(viewModelScope) { event ->
             event.fold(
-                onAdd = {
-                    item.unreadState = it
-                },
+                onAdd = item::updateUnreadState,
                 onUpdate = { },
                 onDelete = {
                     val categoryId = item.channel.parentId
 
                     if (categoryId != null) {
                         allChannelItems.remove(it)
-                        categoryChannels[categoryId]?.subChannels?.remove(it)
+                        categoryChannels[categoryId]?.channels?.remove(it)
                         item.cancelJobs()
                     }
                 },
@@ -215,11 +238,17 @@ class ChannelsViewModel(
 
         item.lastMessageListenerJob = lastMessageStore.observeChannel(channel.id).collectIn(viewModelScope) { event ->
             event.fold(
-                onAdd = { (_, messageId) ->
-                    item.lastMessageId = messageId
-                },
+                onAdd = { (_, messageId) -> item.updateLastMessageId(messageId) },
                 onUpdate = { },
                 onDelete = { /* Handled by UnreadStore listener */ },
+            )
+        }
+
+        item.mentionCountListenerJob = unreadStore.observeMentionCount(channel.id).collectIn(viewModelScope) { event ->
+            event.fold(
+                onAdd = { item.mentionCount = it },
+                onUpdate = { item.mentionCount += it },
+                onDelete = {},
             )
         }
 
@@ -255,15 +284,18 @@ class ChannelsViewModel(
             .filterValues { it.channel.parentId == null }
 
         withContext(Dispatchers.Main) {
-            allChannelItems.values.forEach { it.cancelJobs() }
-            allChannelItems.clear()
-            allChannelItems.putAll(channelItems)
+            synchronized(state) { // Needed or the old cached items can overwrite the new items from gw
+                allChannelItems.values.forEach { it.cancelJobs() }
+                allChannelItems.clear()
+                allChannelItems.putAll(channelItems)
 
-            categoryChannels.clear()
-            categoryChannels.putAll(categoryItems)
+                categoryChannels.clear()
+                categoryChannels.putAll(categoryItems)
 
-            noCategoryChannels.clear()
-            noCategoryChannels.putAll(noCategoryItems)
+                noCategoryChannels.clear()
+                noCategoryChannels.putAll(noCategoryItems)
+                state = State.Loaded
+            }
         }
     }
 

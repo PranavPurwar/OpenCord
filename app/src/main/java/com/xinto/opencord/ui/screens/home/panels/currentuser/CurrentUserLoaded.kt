@@ -14,10 +14,10 @@ import androidx.compose.ui.unit.dp
 import com.xinto.opencord.R
 import com.xinto.opencord.domain.usersettings.DomainCustomStatus
 import com.xinto.opencord.domain.usersettings.DomainUserStatus
-import com.xinto.opencord.ui.components.OCAsyncImage
 import com.xinto.opencord.ui.components.OCBadgeBox
+import com.xinto.opencord.ui.components.OCImage
 import com.xinto.opencord.ui.components.indicator.UserStatusIcon
-import com.xinto.opencord.util.ifNotNullComposable
+import com.xinto.opencord.ui.util.ifNotNullComposable
 
 @Composable
 fun CurrentUserLoaded(
@@ -40,11 +40,12 @@ fun CurrentUserLoaded(
                     )
                 },
             ) {
-                OCAsyncImage(
+                OCImage(
+                    url = avatarUrl,
+                    memoryCaching = true,
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape),
-                    url = avatarUrl,
                 )
             }
         },

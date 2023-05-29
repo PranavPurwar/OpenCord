@@ -11,4 +11,7 @@ val viewModelModule = module {
     viewModelOf(::ChannelsViewModel)
     viewModelOf(::ChannelPinsViewModel)
     viewModelOf(::CurrentUserViewModel)
+    viewModelOf(::MessageMenuViewModel)
+    viewModelOf(::MentionsViewModel)
+    viewModelOf(::ChatInputViewModel)
 }

@@ -9,6 +9,7 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,7 +21,6 @@ import com.valentinilk.shimmer.ShimmerBounds
 import com.valentinilk.shimmer.rememberShimmer
 import com.valentinilk.shimmer.shimmer
 import com.xinto.opencord.R
-import com.xinto.opencord.ui.components.guild.list.GuildsListItemText
 import com.xinto.opencord.ui.components.guild.list.RegularGuildItem
 
 @Composable
@@ -44,28 +44,26 @@ fun GuildsListLoading(
             showIndicator = false,
             onClick = {},
         ) {
-            GuildsListItemText {
-                Icon(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .align(Alignment.Center),
-                    painter = painterResource(R.drawable.ic_discord_logo),
-                    contentDescription = stringResource(R.string.guilds_home),
-                )
-            }
+            Icon(
+                modifier = Modifier
+                    .size(32.dp)
+                    .align(Alignment.Center),
+                painter = painterResource(R.drawable.ic_discord_logo),
+                contentDescription = stringResource(R.string.guilds_home),
+            )
         }
 
         Divider(
             modifier = Modifier
-                .fillMaxWidth(0.55f)
-                .padding(bottom = 4.dp)
+                .fillMaxWidth(0.6f)
+                .padding(bottom = 4.dp, top = 6.dp)
                 .clip(MaterialTheme.shapes.medium),
             thickness = 2.dp,
             color = MaterialTheme.colorScheme.outline,
         )
 
         val count = remember { (4..10).random() }
-        repeat(count) {
+        for (i in 0 until count) key(i) {
             Box(
                 modifier = Modifier
                     .shimmer(shimmer)

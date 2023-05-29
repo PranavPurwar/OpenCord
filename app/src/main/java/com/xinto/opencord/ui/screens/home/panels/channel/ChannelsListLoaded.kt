@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.xinto.opencord.R
 import com.xinto.opencord.domain.channel.DomainTextChannel
 import com.xinto.opencord.domain.channel.DomainVoiceChannel
-import com.xinto.opencord.ui.components.OCAsyncImage
+import com.xinto.opencord.ui.components.OCImage
 import com.xinto.opencord.ui.components.channel.list.ChannelListCategoryItem
 import com.xinto.opencord.ui.components.channel.list.ChannelListRegularItem
 import com.xinto.opencord.ui.util.ContentAlpha
@@ -55,12 +55,12 @@ fun ChannelsListLoaded(
 ) {
     val sortedCategoryChannels by remember(categoryChannels) {
         derivedStateOf {
-            categoryChannels.values.sortedBy { it.channel.position }
+            categoryChannels.values.sortedWith { a, b -> a.channel compareTo b.channel }
         }
     }
     val sortedNoCategoryChannels by remember(noCategoryChannels) {
         derivedStateOf {
-            noCategoryChannels.values.sortedBy { it.channel.position }
+            noCategoryChannels.values.sortedWith { a, b -> a.channel compareTo b.channel }
         }
     }
 
@@ -72,16 +72,18 @@ fun ChannelsListLoaded(
             Box(
                 modifier = Modifier
                     .fillParentMaxWidth()
-                    .height(IntrinsicSize.Min),
+                    .height(IntrinsicSize.Min)
+                    .padding(bottom = 8.dp),
             ) {
                 if (bannerUrl != null) {
-                    OCAsyncImage(
+                    OCImage(
+                        url = bannerUrl,
+                        memoryCaching = true,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillParentMaxWidth()
                             .clip(MaterialTheme.shapes.large)
                             .height(150.dp),
-                        url = bannerUrl,
-                        contentScale = ContentScale.Crop,
                     )
                     Box(
                         modifier = Modifier
@@ -105,7 +107,7 @@ fun ChannelsListLoaded(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopStart)
-                        .padding(14.dp),
+                        .padding(top = 14.dp, start = 18.dp, end = 18.dp),
                 ) {
                     val boostIcon = when (boostLevel to (bannerUrl != null)) {
                         1 to false -> R.drawable.ic_guild_badge_premium_tier_1
@@ -159,8 +161,8 @@ fun ChannelsListLoaded(
                     )
                     ChannelListCategoryItem(
                         modifier = Modifier.padding(
-                            top = 12.dp,
-                            bottom = 4.dp,
+                            top = 14.dp,
+                            bottom = 2.dp,
                         ),
                         title = {
                             Text(categoryItem.channel.name.uppercase())
@@ -181,7 +183,7 @@ fun ChannelsListLoaded(
 
             if (!categoryItem.collapsed) {
                 items(
-                    items = categoryItem.subChannels.values.sortedBy { it.channel.position },
+                    items = categoryItem.channelsSorted,
                     key = { it.channel.id },
                 ) { itemChannel ->
                     ChannelItem(
@@ -214,6 +216,7 @@ fun ChannelItem(
                 },
                 selected = isSelected,
                 showUnread = itemData.isUnread,
+                mentionCount = itemData.mentionCount,
                 onClick = onClick,
             )
         }

@@ -1,7 +1,9 @@
 package com.xinto.opencord.domain.message
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.text.AnnotatedString
 import com.github.materiiapps.partial.*
+import com.xinto.opencord.BuildConfig
 import com.xinto.opencord.db.entity.message.EntityMessage
 import com.xinto.opencord.domain.attachment.DomainAttachment
 import com.xinto.opencord.domain.attachment.toDomain
@@ -13,7 +15,8 @@ import com.xinto.opencord.rest.models.message.ApiMessage
 import com.xinto.opencord.rest.models.message.ApiMessagePartial
 import com.xinto.opencord.rest.models.message.ApiMessageType
 import com.xinto.opencord.rest.models.message.fromValue
-import com.xinto.simpleast.Node
+import com.xinto.opencord.ui.util.toUnsafeImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.datetime.Instant
 
 @Immutable
@@ -31,17 +34,24 @@ interface DomainMessage {
     @Required
     val channelId: Long
 
+    val guildId: Long?
     val timestamp: Instant
     val pinned: Boolean
     val content: String
     val author: DomainUser
 
     @Skip
-    val contentNodes: List<Node<Any?>>
+    val contentRendered: AnnotatedString
 
     @Skip
     val formattedTimestamp: String
+
+    @Skip
+    val isDeletable: Boolean
 }
+
+val DomainMessage.url: String
+    get() = "${BuildConfig.URL_API}/${guildId ?: "@me"}/$channelId/$id"
 
 fun ApiMessage.toDomain(): DomainMessage {
     return when (type) {
@@ -49,15 +59,16 @@ fun ApiMessage.toDomain(): DomainMessage {
             DomainMessageRegular(
                 id = id.value,
                 channelId = channelId.value,
+                guildId = guildId?.value,
                 content = content,
                 author = author.toDomain(),
                 timestamp = timestamp,
                 pinned = pinned,
                 editedTimestamp = editedTimestamp,
-                attachments = attachments.map { it.toDomain() },
-                embeds = embeds.map { it.toDomain() },
+                attachments = attachments.map { it.toDomain() }.toUnsafeImmutableList(),
+                embeds = embeds.map { it.toDomain() }.toUnsafeImmutableList(),
                 isReply = type == ApiMessageType.Reply,
-                referencedMessage = referencedMessage?.toDomain() as? DomainMessageRegular,
+                referencedMessage = referencedMessage?.toDomain(),
                 mentionEveryone = mentionEveryone,
                 mentions = mentions.map { it.toDomain() },
             )
@@ -67,15 +78,17 @@ fun ApiMessage.toDomain(): DomainMessage {
                 id = id.value,
                 content = content,
                 channelId = channelId.value,
+                guildId = guildId?.value,
                 timestamp = timestamp,
                 pinned = pinned,
                 author = author.toDomain(),
             )
         }
-        else -> DomainMessageUnknown(
+        ApiMessageType.Unknown -> DomainMessageUnknown(
             id = id.value,
             content = content,
             channelId = channelId.value,
+            guildId = guildId?.value,
             timestamp = timestamp,
             pinned = pinned,
             author = author.toDomain(),
@@ -89,13 +102,14 @@ fun ApiMessagePartial.toDomain(): DomainMessagePartial {
             DomainMessageRegularPartial(
                 id = id.value,
                 channelId = channelId.value,
+                guildId = guildId.map { it?.value },
                 content = content,
                 author = author.map { it.toDomain() },
                 timestamp = timestamp,
                 pinned = pinned,
                 editedTimestamp = editedTimestamp,
-                attachments = attachments.map { it.map { it.toDomain() } },
-                embeds = embeds.map { it.map { it.toDomain() } },
+                attachments = attachments.map { it.map { it.toDomain() }.toUnsafeImmutableList() },
+                embeds = embeds.map { it.map { it.toDomain() }.toUnsafeImmutableList() },
                 isReply = partial(type == ApiMessageType.Reply),
                 referencedMessage = referencedMessage.map { it?.toDomain() },
                 mentionEveryone = mentionEveryone,
@@ -106,15 +120,17 @@ fun ApiMessagePartial.toDomain(): DomainMessagePartial {
             DomainMessageMemberJoinPartial(
                 id = id.value,
                 channelId = channelId.value,
+                guildId = guildId.map { it?.value },
                 content = content,
                 author = author.map { it.toDomain() },
                 timestamp = timestamp,
                 pinned = pinned,
             )
         }
-        else -> DomainMessageUnknownPartial(
+        ApiMessageType.Unknown, null -> DomainMessageUnknownPartial(
             id = id.value,
             channelId = channelId.value,
+            guildId = guildId.map { it?.value },
             content = content,
             author = author.map { it.toDomain() },
             timestamp = timestamp,
@@ -134,15 +150,16 @@ fun EntityMessage.toDomain(
             DomainMessageRegular(
                 id = id,
                 channelId = channelId,
+                guildId = guildId,
                 content = content,
                 author = author,
                 timestamp = Instant.fromEpochMilliseconds(timestamp),
                 pinned = pinned,
                 editedTimestamp = editedTimestamp?.let { Instant.fromEpochMilliseconds(it) },
-                attachments = attachments ?: emptyList(),
-                embeds = embeds ?: emptyList(),
+                attachments = attachments?.toUnsafeImmutableList() ?: persistentListOf(),
+                embeds = embeds?.toUnsafeImmutableList() ?: persistentListOf(),
                 isReply = type == ApiMessageType.Reply,
-                referencedMessage = referencedMessage as? DomainMessageRegular,
+                referencedMessage = referencedMessage,
                 mentionEveryone = mentionsEveryone,
 //                mentions = mentions.map { it.toDomain() },
                 mentions = emptyList(),
@@ -153,15 +170,17 @@ fun EntityMessage.toDomain(
                 id = id,
                 content = content,
                 channelId = channelId,
+                guildId = guildId,
                 timestamp = Instant.fromEpochMilliseconds(timestamp),
                 pinned = pinned,
                 author = author,
             )
         }
-        else -> DomainMessageUnknown(
+        ApiMessageType.Unknown, null -> DomainMessageUnknown(
             id = id,
             content = content,
             channelId = channelId,
+            guildId = guildId,
             timestamp = Instant.fromEpochMilliseconds(timestamp),
             pinned = pinned,
             author = author,

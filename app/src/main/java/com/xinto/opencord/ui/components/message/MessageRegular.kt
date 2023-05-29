@@ -1,13 +1,16 @@
 package com.xinto.opencord.ui.components.message
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.xinto.opencord.ui.components.message.reply.MessageReplyBranch
 
@@ -15,6 +18,11 @@ import com.xinto.opencord.ui.components.message.reply.MessageReplyBranch
 fun MessageRegular(
     modifier: Modifier = Modifier,
     mentioned: Boolean = false,
+    topMerged: Boolean = false,
+    bottomMerged: Boolean = false,
+    shape: Shape = MaterialTheme.shapes.large,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     reply: (@Composable () -> Unit)? = null,
     avatar: (@Composable () -> Unit)? = null,
     author: (@Composable () -> Unit)? = null,
@@ -23,23 +31,29 @@ fun MessageRegular(
     embeds: (@Composable () -> Unit)? = null,
     reactions: (@Composable () -> Unit)? = null,
 ) {
-    val background = if (mentioned) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        Color.Unspecified
-    }
+    val backgroundColor = MaterialTheme.colorScheme.secondaryContainer
 
-    val isMerged = author == null && avatar == null
-
-    Box(modifier = modifier.background(background)) {
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .combinedClickable(
+                enabled = onClick != null || onLongClick != null,
+                onClick = {},
+                onLongClick = onLongClick,
+            )
+            .then(modifier)
+            .drawBehind {
+                drawRect(if (mentioned) backgroundColor else Color.Unspecified)
+            },
+    ) {
         Column(
             modifier = Modifier
                 .wrapContentHeight()
                 .padding(
                     start = 8.dp,
-                    top = if (!isMerged) 16.dp else 1.dp,
+                    top = if (!topMerged) 8.dp else 1.5.dp,
                     end = 8.dp,
-                    bottom = 1.dp,
+                    bottom = if (!bottomMerged) 8.dp else 1.5.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {

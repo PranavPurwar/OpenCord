@@ -9,10 +9,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.with
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.SideEffect
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.Modifier
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.core.view.WindowCompat
 import com.xinto.opencord.db.database.CacheDatabase
 import com.xinto.opencord.gateway.DiscordGateway
 import com.xinto.opencord.ui.navigation.AppDestination
@@ -20,8 +19,10 @@ import com.xinto.opencord.ui.navigation.back
 import com.xinto.opencord.ui.screens.Settings
 import com.xinto.opencord.ui.screens.SettingsCategory
 import com.xinto.opencord.ui.screens.home.HomeScreen
+import com.xinto.opencord.ui.screens.mentions.MentionsScreen
 import com.xinto.opencord.ui.screens.pins.PinsScreen
 import com.xinto.opencord.ui.theme.OpenCordTheme
+import com.xinto.opencord.ui.util.SystemBarsControl
 import dev.olshevski.navigation.reimagined.AnimatedNavHost
 import dev.olshevski.navigation.reimagined.navigate
 import dev.olshevski.navigation.reimagined.rememberNavController
@@ -35,6 +36,7 @@ class AppActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         scope.launch(Dispatchers.IO) {
             get<DiscordGateway>().connect()
@@ -56,16 +58,7 @@ class AppActivity : ComponentActivity() {
             BackHandler { nav.back() }
 
             OpenCordTheme {
-                val systemUiController = rememberSystemUiController()
-                val isLight = false
-                val surface = MaterialTheme.colorScheme.surface
-
-                SideEffect {
-                    systemUiController.setSystemBarsColor(
-                        color = surface,
-                        darkIcons = isLight,
-                    )
-                }
+                SystemBarsControl()
 
                 AnimatedNavHost(
                     controller = nav,
@@ -92,19 +85,37 @@ class AppActivity : ComponentActivity() {
                 ) { dest ->
                     when (dest) {
                         AppDestination.Main -> HomeScreen(
-                            modifier = Modifier.fillMaxSize(),
-                            onSettingsClick = { nav.navigate(AppDestination.Settings) },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .imePadding(),
                             onPinsClick = { nav.navigate(AppDestination.Pins(data = it)) },
+                            onSettingsClick = { nav.navigate(AppDestination.Settings) },
+                            onMentionsClick = { nav.navigate(AppDestination.Mentions) },
+                            onFriendsClick = { /* TODO */ },
+                            onSearchClick = { /* TODO */ },
+                        )
+
+
+                        AppDestination.Settings -> Settings(
+                            data = dest.data
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .imePadding(),
+                            onBackClick = { nav.back() },
+                        )
+
+                        AppDestination.Mentions -> MentionsScreen(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .imePadding(),
+                            onBackClick = { nav.back() },
                         )
 
                         is AppDestination.Pins -> PinsScreen(
                             data = dest.data,
-                            modifier = Modifier.fillMaxSize(),
-                            onBackClick = { nav.back() },
-                        )
-
-                        AppDestination.Settings -> Settings(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .imePadding(),
                             onBackClick = { nav.back() },
                             onCategoryClick = { nav.navigate(it) },
                         )
